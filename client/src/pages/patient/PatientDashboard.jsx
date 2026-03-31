@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services/userService';
@@ -6,9 +6,12 @@ import { appointmentService } from '../../services/appointmentService';
 import { aiService } from '../../services/aiService';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { Skeleton, SkeletonDashboardCard, SkeletonChart } from '../../components/Skeleton';
 import { Calendar, Activity, FileText, Stethoscope, TrendingUp, Clock, User } from 'lucide-react';
 import { format } from 'date-fns';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+// Lazy load the chart component for better initial load performance
+const TrendsChart = lazy(() => import('./TrendsChart'));
 
 export const PatientDashboard = () => {
   const { user } = useAuth();
@@ -44,7 +47,28 @@ export const PatientDashboard = () => {
   }, []);
 
   if (loading) {
-    return <div className="text-center py-12">Loading...</div>;
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-9 w-64" />
+          <Skeleton className="mt-2 h-5 w-48" />
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonDashboardCard key={i} />
+          ))}
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <SkeletonDashboardCard className="h-64" />
+          <SkeletonDashboardCard className="h-64" />
+          <SkeletonDashboardCard className="h-64" />
+        </div>
+
+        <SkeletonChart height={350} />
+      </div>
+    );
   }
 
   return (
@@ -228,31 +252,9 @@ export const PatientDashboard = () => {
       </div>
 
       {trends.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5" />
-              <span>Health Trends</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={trends.map(t => ({
-                date: format(new Date(t.date), 'MMM dd'),
-                confidence: t.confidence || 0,
-                accuracy: t.accuracy || 0,
-              }))}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="confidence" stroke="#8884d8" name="Confidence %" />
-                <Line type="monotone" dataKey="accuracy" stroke="#82ca9d" name="Accuracy %" />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <Suspense fallback={<SkeletonChart height={350} />}>
+          <TrendsChart trends={trends} />
+        </Suspense>
       )}
     </div>
   );

@@ -1,17 +1,80 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import { appointmentService } from '../../services/appointmentService';
 import { userService } from '../../services/userService';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Label } from '../../components/Label';
+import { SkeletonList } from '../../components/Skeleton';
+import { SwipeableItem } from '../../components/SwipeableItem';
+import { PullToRefresh } from '../../components/PullToRefresh';
 import { format } from 'date-fns';
 import { Calendar, Clock, User, X } from 'lucide-react';
+
+// Memoized appointment card for performance
+const AppointmentCard = memo(({ appointment, onCancel, getStatusColor }) => (
+  <CardContent className="pt-6">
+    <div className="flex justify-between items-start">
+      <div className="space-y-2">
+        <div className="flex items-center space-x-2">
+          <User className="h-5 w-5 text-muted-foreground" />
+          <span className="font-semibold">
+            Dr. {appointment.doctor?.name}
+          </span>
+          {appointment.doctor?.specialization && (
+            <span className="text-sm text-muted-foreground">
+              - {appointment.doctor.specialization}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+          <div className="flex items-center space-x-1">
+            <Calendar className="h-5 w-5" />
+            <span>{format(new Date(appointment.appointmentDate), 'MMM dd, yyyy')}</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <Clock className="h-5 w-5" />
+            <span>{appointment.appointmentTime}</span>
+          </div>
+        </div>
+        {appointment.reason && (
+          <p className="text-sm">{appointment.reason}</p>
+        )}
+        {appointment.symptoms && (
+          <p className="text-sm text-muted-foreground">
+            Symptoms: {appointment.symptoms}
+          </p>
+        )}
+      </div>
+      <div className="flex flex-col items-end space-y-2">
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
+          {appointment.status}
+        </span>
+        {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onCancel(appointment._id)}
+            className="hidden md:flex"
+            aria-label="Cancel appointment"
+          >
+            <X className="h-5 w-5 mr-1" />
+            Cancel
+          </Button>
+        )}
+      </div>
+    </div>
+  </CardContent>
+));
+
+AppointmentCard.displayName = 'AppointmentCard';
 
 export const Appointments = () => {
   const [appointments, setAppointments] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [openSwipeId, setOpenSwipeId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     doctor: '',
@@ -26,16 +89,24 @@ export const Appointments = () => {
     fetchDoctors();
   }, []);
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async (isRefresh = false) => {
     try {
+      if (isRefresh) {
+        setIsRefreshing(true);
+      }
       const { appointments: data } = await appointmentService.getAll();
       setAppointments(data);
     } catch (error) {
       console.error('Failed to fetch appointments:', error);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
-  };
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    await fetchAppointments(true);
+  }, [fetchAppointments]);
 
   const fetchDoctors = async () => {
     try {
@@ -64,18 +135,23 @@ export const Appointments = () => {
     }
   };
 
-  const handleCancel = async (id) => {
+  const handleCancel = useCallback(async (id) => {
     if (window.confirm('Are you sure you want to cancel this appointment?')) {
       try {
         await appointmentService.update(id, { status: 'cancelled' });
+        setOpenSwipeId(null);
         fetchAppointments();
       } catch (error) {
         alert(error.response?.data?.message || 'Failed to cancel appointment');
       }
     }
-  };
+  }, [fetchAppointments]);
 
-  const getStatusColor = (status) => {
+  const handleSwipeOpenChange = useCallback((id, isOpen) => {
+    setOpenSwipeId(isOpen ? id : null);
+  }, []);
+
+  const getStatusColor = useCallback((status) => {
     switch (status) {
       case 'confirmed':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
@@ -88,10 +164,20 @@ export const Appointments = () => {
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
     }
-  };
+  }, []);
 
   if (loading) {
-    return <div className="text-center py-12">Loading...</div>;
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">My Appointments</h1>
+            <p className="text-muted-foreground mt-2">Manage your medical appointments</p>
+          </div>
+        </div>
+        <SkeletonList count={4} />
+      </div>
+    );
   }
 
   return (
@@ -183,70 +269,38 @@ export const Appointments = () => {
         </Card>
       )}
 
-      <div className="grid gap-4">
-        {appointments.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <p className="text-muted-foreground">No appointments found</p>
-            </CardContent>
-          </Card>
-        ) : (
-          appointments.map((appointment) => (
-            <Card key={appointment._id}>
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <User className="h-5 w-5 text-muted-foreground" />
-                      <span className="font-semibold">
-                        Dr. {appointment.doctor?.name}
-                      </span>
-                      {appointment.doctor?.specialization && (
-                        <span className="text-sm text-muted-foreground">
-                          - {appointment.doctor.specialization}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                      <div className="flex items-center space-x-1">
-                        <Calendar className="h-4 w-4" />
-                        <span>{format(new Date(appointment.appointmentDate), 'MMM dd, yyyy')}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Clock className="h-4 w-4" />
-                        <span>{appointment.appointmentTime}</span>
-                      </div>
-                    </div>
-                    {appointment.reason && (
-                      <p className="text-sm">{appointment.reason}</p>
-                    )}
-                    {appointment.symptoms && (
-                      <p className="text-sm text-muted-foreground">
-                        Symptoms: {appointment.symptoms}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-end space-y-2">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                      {appointment.status}
-                    </span>
-                    {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleCancel(appointment._id)}
-                      >
-                        <X className="h-4 w-4 mr-1" />
-                        Cancel
-                      </Button>
-                    )}
-                  </div>
-                </div>
+      <PullToRefresh onRefresh={handleRefresh} disabled={isRefreshing}>
+        <div className="grid gap-4">
+          {appointments.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <p className="text-muted-foreground">No appointments found</p>
               </CardContent>
             </Card>
-          ))
-        )}
-      </div>
+          ) : (
+            appointments.map((appointment) => {
+              const canCancel = appointment.status !== 'cancelled' && appointment.status !== 'completed';
+              return (
+                <SwipeableItem
+                  key={appointment._id}
+                  isOpen={openSwipeId === appointment._id}
+                  onOpenChange={(isOpen) => handleSwipeOpenChange(appointment._id, isOpen)}
+                  onDelete={() => handleCancel(appointment._id)}
+                  disabled={!canCancel}
+                >
+                  <Card>
+                    <AppointmentCard
+                      appointment={appointment}
+                      onCancel={handleCancel}
+                      getStatusColor={getStatusColor}
+                    />
+                  </Card>
+                </SwipeableItem>
+              );
+            })
+          )}
+        </div>
+      </PullToRefresh>
     </div>
   );
 };

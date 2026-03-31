@@ -1,26 +1,41 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { SkeletonList } from './components/Skeleton';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
-import { PatientDashboard } from './pages/patient/PatientDashboard';
-import { SymptomChecker } from './pages/patient/SymptomChecker';
-import { Appointments } from './pages/patient/Appointments';
-import { DoctorDashboard } from './pages/doctor/DoctorDashboard';
-import { DoctorAppointments } from './pages/doctor/DoctorAppointments';
-import { DoctorPatients } from './pages/doctor/DoctorPatients';
-import { DoctorAIReports } from './pages/doctor/DoctorAIReports';
-import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { AdminUsers } from './pages/admin/AdminUsers';
-import { AdminAppointments } from './pages/admin/AdminAppointments';
-import { AdminAnalytics } from './pages/admin/AdminAnalytics';
-import { AdminAIAnalyses } from './pages/admin/AdminAIAnalyses';
-import { PatientReports } from './pages/patient/PatientReports';
-import { PatientAnalyses } from './pages/patient/PatientAnalyses';
-import { PatientProfile } from './pages/patient/PatientProfile';
+
+// Lazy load patient pages for code splitting
+const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard').then(m => ({ default: m.PatientDashboard })));
+const SymptomChecker = lazy(() => import('./pages/patient/SymptomChecker').then(m => ({ default: m.SymptomChecker })));
+const Appointments = lazy(() => import('./pages/patient/Appointments').then(m => ({ default: m.Appointments })));
+const PatientReports = lazy(() => import('./pages/patient/PatientReports').then(m => ({ default: m.PatientReports })));
+const PatientAnalyses = lazy(() => import('./pages/patient/PatientAnalyses').then(m => ({ default: m.PatientAnalyses })));
+const PatientProfile = lazy(() => import('./pages/patient/PatientProfile').then(m => ({ default: m.PatientProfile })));
+
+// Lazy load doctor pages for code splitting
+const DoctorDashboard = lazy(() => import('./pages/doctor/DoctorDashboard').then(m => ({ default: m.DoctorDashboard })));
+const DoctorAppointments = lazy(() => import('./pages/doctor/DoctorAppointments').then(m => ({ default: m.DoctorAppointments })));
+const DoctorPatients = lazy(() => import('./pages/doctor/DoctorPatients').then(m => ({ default: m.DoctorPatients })));
+const DoctorAIReports = lazy(() => import('./pages/doctor/DoctorAIReports').then(m => ({ default: m.DoctorAIReports })));
+
+// Lazy load admin pages for code splitting
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers').then(m => ({ default: m.AdminUsers })));
+const AdminAppointments = lazy(() => import('./pages/admin/AdminAppointments').then(m => ({ default: m.AdminAppointments })));
+const AdminAnalytics = lazy(() => import('./pages/admin/AdminAnalytics').then(m => ({ default: m.AdminAnalytics })));
+const AdminAIAnalyses = lazy(() => import('./pages/admin/AdminAIAnalyses').then(m => ({ default: m.AdminAIAnalyses })));
+
+// Loading fallback component
+const PageLoader = () => (
+  <div className="p-6">
+    <SkeletonList count={3} />
+  </div>
+);
 
 function App() {
   return (
@@ -46,7 +61,9 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['patient']}>
                   <Layout>
-                    <PatientDashboard />
+                    <Suspense fallback={<PageLoader />}>
+                      <PatientDashboard />
+                    </Suspense>
                   </Layout>
                 </ProtectedRoute>
               }
@@ -56,7 +73,9 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['patient']}>
                   <Layout>
-                    <SymptomChecker />
+                    <Suspense fallback={<PageLoader />}>
+                      <SymptomChecker />
+                    </Suspense>
                   </Layout>
                 </ProtectedRoute>
               }
@@ -66,7 +85,9 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['patient']}>
                   <Layout>
-                    <Appointments />
+                    <Suspense fallback={<PageLoader />}>
+                      <Appointments />
+                    </Suspense>
                   </Layout>
                 </ProtectedRoute>
               }
@@ -76,7 +97,9 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['patient']}>
                   <Layout>
-                    <PatientReports />
+                    <Suspense fallback={<PageLoader />}>
+                      <PatientReports />
+                    </Suspense>
                   </Layout>
                 </ProtectedRoute>
               }
@@ -86,7 +109,9 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['patient']}>
                   <Layout>
-                    <PatientAnalyses />
+                    <Suspense fallback={<PageLoader />}>
+                      <PatientAnalyses />
+                    </Suspense>
                   </Layout>
                 </ProtectedRoute>
               }
@@ -96,7 +121,9 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['patient']}>
                   <Layout>
-                    <PatientProfile />
+                    <Suspense fallback={<PageLoader />}>
+                      <PatientProfile />
+                    </Suspense>
                   </Layout>
                 </ProtectedRoute>
               }
@@ -106,7 +133,9 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['doctor']}>
                   <Layout>
-                    <DoctorDashboard />
+                    <Suspense fallback={<PageLoader />}>
+                      <DoctorDashboard />
+                    </Suspense>
                   </Layout>
                 </ProtectedRoute>
               }
@@ -116,7 +145,9 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['doctor']}>
                   <Layout>
-                    <DoctorAppointments />
+                    <Suspense fallback={<PageLoader />}>
+                      <DoctorAppointments />
+                    </Suspense>
                   </Layout>
                 </ProtectedRoute>
               }
@@ -126,7 +157,9 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['doctor']}>
                   <Layout>
-                    <DoctorPatients />
+                    <Suspense fallback={<PageLoader />}>
+                      <DoctorPatients />
+                    </Suspense>
                   </Layout>
                 </ProtectedRoute>
               }
@@ -136,7 +169,9 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['doctor']}>
                   <Layout>
-                    <DoctorAIReports />
+                    <Suspense fallback={<PageLoader />}>
+                      <DoctorAIReports />
+                    </Suspense>
                   </Layout>
                 </ProtectedRoute>
               }
@@ -146,7 +181,9 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <Layout>
-                    <AdminDashboard />
+                    <Suspense fallback={<PageLoader />}>
+                      <AdminDashboard />
+                    </Suspense>
                   </Layout>
                 </ProtectedRoute>
               }
@@ -156,7 +193,9 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <Layout>
-                    <AdminUsers />
+                    <Suspense fallback={<PageLoader />}>
+                      <AdminUsers />
+                    </Suspense>
                   </Layout>
                 </ProtectedRoute>
               }
@@ -166,7 +205,9 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <Layout>
-                    <AdminAppointments />
+                    <Suspense fallback={<PageLoader />}>
+                      <AdminAppointments />
+                    </Suspense>
                   </Layout>
                 </ProtectedRoute>
               }
@@ -176,7 +217,9 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <Layout>
-                    <AdminAnalytics />
+                    <Suspense fallback={<PageLoader />}>
+                      <AdminAnalytics />
+                    </Suspense>
                   </Layout>
                 </ProtectedRoute>
               }
@@ -186,7 +229,9 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <Layout>
-                    <AdminAIAnalyses />
+                    <Suspense fallback={<PageLoader />}>
+                      <AdminAIAnalyses />
+                    </Suspense>
                   </Layout>
                 </ProtectedRoute>
               }
